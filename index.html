@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="bg"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Galaxy Boom</title>
+<style>
+:root{color-scheme:dark;--bg:#0b0626;--card:#1d1450;--line:#6a4fe0;--tx:#f2ecff;--mut:#a99be0;--gold:#ffc83d;--ok:#3ddc97;--bad:#ff5c7a;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0b0626}}
+*{box-sizing:border-box}html{height:100%}
+body{margin:0;min-height:100%;background:radial-gradient(circle at 20% 10%,#3b1a8f,transparent 50%),radial-gradient(circle at 90% 80%,#1b3a9f,transparent 50%),var(--bg);color:var(--tx);font-family:system-ui,-apple-system,"Segoe UI",sans-serif}
+#app{max-width:480px;margin:0 auto;padding:16px}
+h1{font-size:44px;margin:8px 0;text-align:center;background:linear-gradient(90deg,#fff,#ffc83d);-webkit-background-clip:text;background-clip:text;color:transparent}
+h2{margin:6px 0 12px;font-size:20px;text-align:center}
+.btn{display:block;width:100%;margin:10px 0;padding:14px;border:2px solid var(--line);border-radius:16px;background:linear-gradient(#4a35b8,#2d2080);color:var(--tx);font-size:17px;font-weight:700;cursor:pointer}
+.btn.gold{background:linear-gradient(#ffc83d,#ff9a1f);color:#2a1500;border-color:#ffe08a}
+.btn:disabled{opacity:.45}
+.card{background:rgba(29,20,80,.85);border:1px solid var(--line);border-radius:18px;padding:14px;margin:10px 0}
+.top{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.chip{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:6px 12px;font-weight:700}
+.bar{height:12px;border-radius:8px;background:#2a1f6b;overflow:hidden;margin:10px 0}
+.bar i{display:block;height:100%;width:100%;background:linear-gradient(90deg,var(--ok),var(--gold),var(--bad))}
+.grid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
+.lv{aspect-ratio:1;border-radius:14px;border:2px solid var(--line);background:var(--card);color:var(--tx);font-size:18px;font-weight:800;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer}
+.lv small{font-size:10px;color:var(--gold)}.lv.lock{opacity:.4;cursor:default}
+input{width:100%;padding:14px;border-radius:14px;border:2px solid var(--line);background:#120a3a;color:var(--tx);font-size:17px}
+.row{display:flex;justify-content:space-between;padding:10px 6px;border-bottom:1px solid #3a2c85}
+.row.me{background:#3a2c85;border-radius:10px}
+.big{font-size:56px;text-align:center;letter-spacing:6px}
+.pz{display:grid;grid-template-columns:repeat(3,1fr);gap:3px;max-width:300px;margin:12px auto}
+.pz div{aspect-ratio:1;border-radius:6px;cursor:pointer;background-size:300% 300%}
+.pz div.sel{outline:3px solid var(--gold)}
+.mem{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:12px}
+.mem div{aspect-ratio:1;border-radius:14px;background:var(--card);border:2px solid var(--line);display:flex;align-items:center;justify-content:center;font-size:38px;cursor:pointer}
+.mem div.open{background:#3a2c85}.mem div.done{background:#145a3c;border-color:var(--ok)}
+.btn.bad{background:#7a1f35;border-color:var(--bad)}.btn.good{background:#145a3c;border-color:var(--ok)}
+.shake{animation:sh .3s}@keyframes sh{25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+.muted{color:var(--mut);font-size:14px;text-align:center}
+.pz div{position:relative;box-shadow:inset 0 0 0 1px rgba(255,255,255,.35)}.pz div.ok{box-shadow:inset 0 0 0 3px var(--ok)}.pz div span{position:absolute;top:3px;left:6px;font:700 13px system-ui;color:#fff;text-shadow:0 0 3px #000,0 0 3px #000}.pz{max-width:340px;gap:4px}.pg{display:grid;grid-template-columns:repeat(9,1fr);gap:2px;max-width:340px;margin:8px auto}.pg i{aspect-ratio:1;display:flex;align-items:center;justify-content:center;font-style:normal;font-size:clamp(14px,5vw,24px);border-radius:6px}.pw{background:#3a2c85}.pc{background:#120a3a}.dp{display:grid;grid-template-columns:repeat(3,76px);gap:6px;justify-content:center;margin-top:8px}.dp button{height:60px;font-size:22px;border-radius:12px;border:2px solid var(--line);background:#2d2080;color:var(--tx)}</style></head><body><div id="app"></div>
+<script>
+const $=s=>document.querySelector(s),A=$('#app');
+let S={name:'',score:0,stars:{},best:{}},col=null,me=null,rows=[],cur='home',G=null;
+try{Object.assign(S,JSON.parse(localStorage.getItem('gb')||'{}'))}catch(e){}
+const sum=o=>Object.values(o).reduce((a,b)=>a+b,0);
+const CFG={url:'',key:''}; // <- Supabase URL и anon key (виж README.md)
+let mode='local',LV;
+try{me=localStorage.getItem('gbid');if(!me){me=Math.random().toString(36).slice(2,10)+Date.now().toString(36);localStorage.setItem('gbid',me)}}catch(e){me='p'+Date.now()}
+function pl(){return{name:S.name,score:S.score,stars:sum(S.stars),levels:Object.keys(S.stars).length,map:{stars:S.stars,best:S.best}}}
+function sb(m,q,body,h){return fetch(CFG.url+'/rest/v1/players'+q,{method:m,headers:{apikey:CFG.key,Authorization:'Bearer '+CFG.key,'Content-Type':'application/json',...h},body:body&&JSON.stringify(body)}).then(r=>r.ok?r.text():Promise.reject())}
+function save(){
+  try{localStorage.setItem('gb',JSON.stringify(S))}catch(e){}
+  if(!S.name)return;
+  if(mode==='claude')col.doc(me).set(pl()).catch(()=>{});
+  else if(mode==='sb')sb('POST','?on_conflict=id',{id:me,...pl()},{Prefer:'resolution=merge-duplicates,return=minimal'}).catch(()=>{});
+}
+async function pollLb(){try{rows=JSON.parse(await sb('GET','?select=id,name,score,stars&order=score.desc&limit=50'));if(cur==='lb')lb()}catch(e){}}
+(async()=>{
+  try{if(window.claude){
+    const u=await claude.use('user'),db=await claude.use('db');
+    if(u&&db){me=String(await u.id());col=db.collection('players');mode='claude';
+      const d=await col.doc(me).get();
+      if(d.exists){const x=d.data();if(x.name&&!S.name)S.name=x.name;if((x.score||0)>S.score&&x.map){S.score=x.score;S.stars=x.map.stars||{};S.best=x.map.best||{}}}
+      col.onSnapshot(q=>{rows=q.docs.map(d=>({id:d.id,...d.data()}));if(cur==='lb')lb()},()=>{});}
+  }}catch(e){}
+  if(mode==='local'&&CFG.url){mode='sb';pollLb();setInterval(pollLb,5000)}
+  save();if(cur==='home')home();
+})();
+
+function show(h,name){cur=name;A.innerHTML=h;window.scrollTo(0,0)}
+function home(){
+  if(!S.name)return reg();
+  show(`<h1>Galaxy Boom</h1><div class="big">🚀</div>
+  <div class="card top"><span>👨‍🚀 ${esc(S.name)}</span><span class="chip">⭐ ${S.score} т.</span></div>
+  <button class="btn gold" onclick="levels()">Играй</button>
+  <button class="btn" onclick="levels()">Нива</button>
+  <button class="btn" onclick="lbShow()">🏆 Класация</button>
+  <button class="btn" onclick="ach()">Постижения</button>
+  <p class="muted">${mode==='local'?'Офлайн режим – класацията още не е свързана (виж README).':'Класацията е на живо за всички играчи.'}</p>`,'home');
+}
+function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
+function reg(){
+  show(`<h1>Galaxy Boom</h1><div class="big">👨‍🚀</div><h2>Регистрирай се, за да влезеш в класацията</h2>
+  <input id="nm" maxlength="16" placeholder="Твоят псевдоним"><button class="btn gold" onclick="doReg()">Старт</button>`,'reg');
+}
+function doReg(){const v=$('#nm').value.trim();if(v.length<2)return;S.name=v;save();home()}
+function play(i){
+  const L=LV[i];G={i,left:LV[i].time||30,max:LV[i].time||30,done:false};
+  show(`<div class="top"><button class="chip" onclick="stop();levels()">←</button><b>Ниво ${i+1} – ${L.t}</b><span class="chip" id="tm">30</span></div>
+  <div class="bar"><i id="bar"></i></div><div id="box"></div>`,'play');
+  G.iv=setInterval(()=>{G.left-=.1;upd();if(G.left<=0)end(false)},100);
+  L.m($('#box'),()=>end(true));
+}
+function upd(){const l=Math.max(0,G.left);$('#tm').textContent=Math.ceil(l);$('#bar').style.width=l/G.max*100+'%'}
+function pen(s){G.left=Math.min(G.max,G.left-s);upd()}
+function stop(){if(G)clearInterval(G.iv)}
+function end(win){
+  if(G.done)return;G.done=true;stop();
+  const n=G.i+1,left=Math.max(0,G.left);
+  if(!win){return show(`<h2>⏰ Времето изтече!</h2><div class="big">💥</div><button class="btn gold" onclick="play(${G.i})">Опитай пак</button><button class="btn" onclick="levels()">Към нивата</button>`,'res')}
+  const pts=(100+Math.ceil(left)*10)*(LV[G.i].boss?2:1),st=left>G.max*.66?3:left>G.max*.33?2:1,gain=Math.max(0,pts-(S.best[n]||0));
+  S.best[n]=Math.max(S.best[n]||0,pts);S.stars[n]=Math.max(S.stars[n]||0,st);S.score+=gain;save();
+  const nx=n<LV.length;
+  show(`<h2>Ниво завършено!</h2><div class="big">${'⭐'.repeat(st)}${'☆'.repeat(3-st)}</div>
+  <p class="muted">+${pts} точки · общо ${S.score}</p>
+  <div class="card"><b>🪐 Любопитен факт</b><p>${LV[G.i].f}</p></div>
+  ${nx?`<button class="btn gold" onclick="play(${n})">Следващо ниво</button>`:`<div class="card">🎉 Завърши всички налични нива! Още идват скоро.</div>`}
+  <button class="btn" onclick="lbShow()">🏆 Класация</button><button class="btn" onclick="levels()">Към нивата</button>`,'res');
+}
+function lbShow(){cur='lb';lb()}
+function lb(){
+  let r=rows.slice();if(mode==='local'&&S.name)r=[{id:'me',name:S.name,score:S.score,stars:sum(S.stars)}];
+  r.sort((a,b)=>(b.score||0)-(a.score||0));
+  const h=r.slice(0,50).map((p,i)=>`<div class="row ${p.id===me||p.id==='me'?'me':''}"><span>${['🥇','🥈','🥉'][i]||i+1+'.'} ${esc(p.name||'Играч')}</span><span>${p.score||0} т. · ⭐${p.stars||0}</span></div>`).join('')||'<p class="muted">Още няма играчи.</p>';
+  show(`<div class="top"><button class="chip" onclick="home()">←</button></div><h2>🏆 Класация на живо</h2><div class="card">${h}</div>`,'lb');
+}
+function ach(){
+  const n=Object.keys(S.stars).length,s=sum(S.stars);
+  const B=[['🥇','Първа мисия',n>=1],['⭐','10 звезди',s>=10],['🏆','Всички 40 нива',n>=LV.length],['👾','Победен бос',!!(S.stars[10]||S.stars[20]||S.stars[30])],['💯','1000 точки',S.score>=1000],['🪐','Астроном',n>=3]];
+  show(`<div class="top"><button class="chip" onclick="home()">←</button></div><h2>Постижения</h2>`+B.map(b=>`<div class="card top" style="opacity:${b[2]?1:.4}"><span>${b[0]} ${b[1]}</span><span>${b[2]?'✓':'🔒'}</span></div>`).join(''),'ach');
+}
+
+function quiz(b,q,opts,ans,w){
+  b.innerHTML=`<div class="card"><p style="font-size:18px;margin:0">${q}</p></div>`+opts.map((o,i)=>`<button class="btn" data-i="${i}">${o}</button>`).join('')+`<p class="muted">Грешен отговор = −5 секунди</p>`;
+  b.querySelectorAll('button').forEach(bt=>bt.onclick=()=>{
+    if(+bt.dataset.i===ans){bt.classList.add('good');setTimeout(w,300)}
+    else{bt.classList.add('bad','shake');bt.disabled=true;pen(5)}
+  });
+}
+function order(b,w,P,qq){
+  const sh=P.slice().sort(()=>Math.random()-.5);let k=0;
+  b.innerHTML=`<div class="card"><p style="margin:0;font-size:18px">${qq}</p></div>`+sh.map(p=>`<button class="btn">${p}</button>`).join('')+`<p class="muted">Грешка = −3 секунди</p>`;
+  b.querySelectorAll('button').forEach(bt=>bt.onclick=()=>{
+    if(bt.textContent===P[k]){bt.classList.add('good');bt.disabled=true;if(++k===P.length)setTimeout(w,300)}
+    else{bt.classList.add('shake');setTimeout(()=>bt.classList.remove('shake'),300);pen(3)}
+  });
+}
+function memory(b,w,E){
+  const c=E.concat(E).sort(()=>Math.random()-.5);let op=[],lock=false,got=0;
+  b.innerHTML=`<p class="muted">Намери всички двойки!</p><div class="mem" style="grid-template-columns:repeat(${E.length>3?4:3},1fr)">`+c.map((_,i)=>`<div data-i="${i}">❓</div>`).join('')+`</div>`;
+  const el=b.querySelectorAll('.mem div');
+  el.forEach(d=>d.onclick=()=>{
+    const i=+d.dataset.i;if(lock||op.includes(i)||d.classList.contains('done'))return;
+    d.textContent=c[i];d.classList.add('open');op.push(i);
+    if(op.length===2){lock=true;const[a,z]=op;
+      setTimeout(()=>{
+        if(c[a]===c[z]){[a,z].forEach(x=>{el[x].className='done'});got++;if(got===E.length)w()}
+        else{[a,z].forEach(x=>{el[x].className='';el[x].textContent='❓'});pen(2)}
+        op=[];lock=false},500)}
+  });
+}
+function puzzle(b,w,hue){
+  const bg='radial-gradient(circle at 62% 42%,#6fe3d0 0 9%,#2f7fd6 10% 22%,transparent 23%),radial-gradient(circle at 18% 82%,#ff9a1f 0 6%,transparent 7%),radial-gradient(circle at 85% 12%,#fff 0 1.5%,transparent 2%),linear-gradient(135deg,#150a45,#5a1fa8)';
+  let p=[0,1,2,3,4,5,6,7,8];do{p.sort(()=>Math.random()-.5)}while(p.every((v,i)=>v===i));let sel=-1;
+  function r(){
+    b.innerHTML=`<p class="muted">Докосни две части, за да ги размениш</p><div class="pz" style="filter:hue-rotate(${hue}deg)">`+p.map((v,i)=>`<div class="${i===sel?'sel':''}" data-i="${i}" style="background:${bg};background-size:300% 300%;background-position:${v%3*50}% ${Math.floor(v/3)*50}%"></div>`).join('')+`</div>`;
+    b.querySelectorAll('.pz div').forEach(d=>d.onclick=()=>{
+      const i=+d.dataset.i;
+      if(sel<0){sel=i;r()}else{[p[sel],p[i]]=[p[i],p[sel]];sel=-1;r();if(p.every((v,j)=>v===j))setTimeout(w,300)}
+    });
+  }r();
+}
+const Q=[
+['Коя планета е известна като Червената планета?',['Венера','Марс','Меркурий','Юпитер'],1,'Марс е червен заради железен оксид (ръжда) в почвата му.'],
+['Колко планети има в Слънчевата система?',['7','8','9','10'],1,'Плутон е прекласифициран като планета джудже през 2006 г.'],
+['Коя е най-близката до Земята звезда?',['Сириус','Проксима Кентавър','Слънцето','Полярната'],2,'Слънцето съдържа около 99,8% от масата на Слънчевата система.'],
+['Как се нарича естественият спътник на Земята?',['Луна','Фобос','Титан','Европа'],0,'Луната се отдалечава от Земята с около 3,8 см годишно.'],
+['Коя планета се върти почти легнала настрани?',['Нептун','Уран','Марс','Венера'],1,'Наклонът на Уран е около 98°, затова сезоните му траят по над 20 години.'],
+['Какво е галактика?',['Огромна система от звезди, газ и прах','Вид комета','Голяма планета','Изгаснала звезда'],0,'Във Вселената има стотици милиарди галактики.'],
+['Как се казва нашата галактика?',['Андромеда','Млечният път','Триъгълник','Вихър'],1,'Млечният път съдържа стотици милиарди звезди.'],
+['Какво е светлинна година?',['Време за оборот на Земята','Разстоянието, което светлината изминава за година','Скорост на звука','Възраст на звезда'],1,'Една светлинна година е около 9,46 трилиона километра.'],
+['Кой е първият човек в космоса?',['Нийл Армстронг','Юрий Гагарин','Бъз Олдрин','Джон Глен'],1,'Юрий Гагарин облита Земята на 12 април 1961 г.'],
+['Коя планета е най-гореща?',['Меркурий','Венера','Марс','Юпитер'],1,'На Венера температурата достига около 465 °C заради гъстата атмосфера.'],
+['Какво е черна дупка?',['Област, от която и светлината не може да излезе','Тъмна планета','Празно пространство','Изгаснала комета'],0,'Черните дупки се образуват най-често след колапса на огромни звезди.'],
+['Колко земни дни продължава една година на Марс?',['365','687','225','88'],1,'Денят на Марс е почти като нашия – около 24 часа и 37 минути.'],
+['Кой е най-големият спътник на Сатурн?',['Титан','Луна','Йо','Тритон'],0,'Титан има гъста атмосфера и езера от течен метан.'],
+['За колко време светлината от Слънцето стига до Земята?',['8 секунди','8 минути','8 часа','8 дни'],1,'Виждаме Слънцето такова, каквото е било преди около 8 минути.']
+];
+const O=[
+[['Меркурий','Венера','Земя','Марс','Юпитер'],'Докосни планетите по ред – от най-близката до Слънцето ☀️','Меркурий е най-близо до Слънцето, но най-гореща е Венера.'],
+[['Марс','Юпитер','Сатурн','Уран','Нептун'],'Подреди по ред от Слънцето – започни с Марс ☀️','Между Марс и Юпитер е астероидният пояс.'],
+[['Меркурий','Марс','Венера','Земя'],'Подреди планетите от най-малката до най-голямата 📏','Меркурий е само малко по-голям от нашата Луна.'],
+[['Земя','Нептун','Уран','Сатурн','Юпитер'],'Подреди от най-малката до най-голямата 📏','Юпитер е по-голям от всички останали планети, взети заедно.']
+];
+const M=[
+[['🪐','🌍','🚀'],'На Марс има най-големия вулкан в Слънчевата система – Олимп Монс, висок около 22 км.'],
+[['🌙','☄️','👽','🛸'],'Кометите имат опашка само когато са близо до Слънцето.'],
+[['⭐','🌞','🛰️','🪐','🌌','🚀'],'Първият изкуствен спътник, Спутник 1, е изстрелян през 1957 г.']
+];
+M.push([['🌟','🧑‍🚀','🛰️','🔭','🌠'],'Телескопът Хъбъл обикаля Земята от 1990 г. и е направил над милион наблюдения.']);
+const PF=['Пръстените на Сатурн са широки над 280 000 км, но дебели едва няколко десетки метра.','Земята е единствената позната ни планета с течна вода на повърхността.','Нептун има най-силните ветрове в Слънчевата система – над 2 000 км/ч.','Ако Слънцето беше с размерите на входна врата, Земята щеше да е монета.'];
+const R=n=>Math.floor(Math.random()*n);
+function shipQ(){let t,s,tot,m;do{t=[4+R(6),4+R(6),3+R(5)];s=1+R(3);tot=[t[0],t[1],t[2]+s];m=Math.min(...tot)}while(tot.filter(x=>x===m).length>1);
+return[`Кораб А лети ${t[0]} мин., Б – ${t[1]} мин., В – ${t[2]} мин., но спира за ${s} мин. Кой пристига първи?`,['Кораб А','Кораб Б','Кораб В'],tot.indexOf(m)]}
+function qz(b,qs,w){let k=0;(function nx(){const q=qs[k];quiz(b,(qs.length>1?'('+(k+1)+'/'+qs.length+') ':'')+q[0],q[1],q[2],()=>{if(++k===qs.length)w();else nx()})})()}
+function asteroids(b,w,p){
+ let left=5+2*p;
+ b.innerHTML=`<p class="muted">Улови ☄️ астероидите! Не докосвай 👽 (−3 сек.). Остават: <b id="ct">${left}</b></p><div id="ar" style="position:relative;height:300px;border:2px solid var(--line);border-radius:16px;overflow:hidden;background:#120a3a"></div>`;
+ const ar=b.querySelector('#ar'),ct=b.querySelector('#ct');
+ function mk(e,f){const d=document.createElement('div');d.textContent=e;d.style.cssText=`position:absolute;font-size:38px;left:${5+R(75)}%;top:${5+R(75)}%;cursor:pointer;user-select:none`;d.onclick=f;ar.appendChild(d);return d}
+ function sp(){if(G.done||!ar.isConnected)return;ar.innerHTML='';
+  const t=mk('☄️',()=>{ct.textContent=--left;if(left<=0){ar.innerHTML='';w()}else sp()});
+  if(p>0)mk('👽',()=>{pen(3);sp()});
+  setTimeout(()=>{if(ar.contains(t)&&!G.done)sp()},1600-p*160)}
+ sp();
+}
+function simon(b,w,p){
+ const C=['🔴','🟢','🔵','🟡'],L=4+p,seq=Array.from({length:L},()=>R(4));let k=0,ok=false;
+ b.innerHTML=`<p class="muted" id="sm"></p><div class="mem" style="grid-template-columns:repeat(2,1fr)">${C.map((c,i)=>`<div data-i="${i}">${c}</div>`).join('')}</div>`;
+ const el=[...b.querySelectorAll('.mem div')],sm=b.querySelector('#sm');
+ function play(){ok=false;k=0;sm.textContent='Гледай внимателно…';
+  seq.forEach((v,j)=>setTimeout(()=>{if(G.done)return;el[v].classList.add('open');setTimeout(()=>el[v].classList.remove('open'),350)},600+j*650));
+  setTimeout(()=>{ok=true;sm.textContent='Твой ред! Повтори '+L+' сигнала'},600+L*650)}
+ el.forEach((d,i)=>d.onclick=()=>{if(!ok)return;d.classList.add('open');setTimeout(()=>d.classList.remove('open'),150);
+  if(i===seq[k]){if(++k===L){ok=false;w()}}else{pen(3);play()}});
+ play();
+}
+function timing(b,w,p){
+ let pos=0,dir=1,hits=0;const N=3+p,zw=46-6*p;let zs=30+R(30);
+ b.innerHTML=`<p class="muted">Натисни, когато маркерът е в зеленото! Попадения: <b id="ht">0</b>/${N}</p><div style="position:relative;height:34px;background:#2a1f6b;border-radius:10px;overflow:hidden"><div id="zn" style="position:absolute;top:0;bottom:0;background:var(--ok);opacity:.7;left:${zs}%;width:${zw}%"></div><div id="mk" style="position:absolute;top:0;bottom:0;width:8px;background:#fff;left:0"></div></div><button class="btn gold" id="sh">🎯 Стреляй</button>`;
+ const mk=b.querySelector('#mk'),zn=b.querySelector('#zn');
+ const iv=setInterval(()=>{if(G.done||!mk.isConnected)return clearInterval(iv);pos+=dir*(.9+.3*p);if(pos>=96||pos<=0)dir=-dir;mk.style.left=pos+'%'},16);
+ b.querySelector('#sh').onclick=()=>{
+  if(pos+2>=zs&&pos<=zs+zw){b.querySelector('#ht').textContent=++hits;zs=5+R(90-zw);zn.style.left=zs+'%';if(hits===N){clearInterval(iv);w()}}
+  else pen(1)};
+}
+function puzzleN(b,w,n,hue){
+ const bg='radial-gradient(circle at 50% 50%,transparent 0 29%,#ffd166 30% 33%,transparent 34%),radial-gradient(circle at 50% 50%,#ff7b54 0 20%,#ffb26b 21% 27%,transparent 28%),radial-gradient(circle at 12% 15%,#fff 0 3%,transparent 4%),radial-gradient(circle at 88% 20%,#7df9ff 0 5%,transparent 6%),radial-gradient(circle at 14% 86%,#6fe3d0 0 12%,#2f7fd6 13% 20%,transparent 21%),radial-gradient(circle at 86% 84%,#ff4d8d 0 9%,transparent 10%),linear-gradient(135deg,#0e1a5c,#7a1fb0 55%,#e0457b)';
+ let p=[...Array(n*n).keys()];do{p.sort(()=>Math.random()-.5)}while(p.every((v,i)=>v===i));let sel=-1;
+ (function r(){
+  const good=p.filter((v,i)=>v===i).length;
+  b.innerHTML=`<div style="display:flex;gap:12px;align-items:center;justify-content:center"><div style="width:84px;height:84px;flex:none;border-radius:8px;border:2px solid var(--gold);background:${bg};background-size:100% 100%;filter:hue-rotate(${hue}deg)"></div><p class="muted" style="text-align:left;margin:0">Това е целта. Докосни две части, за да ги размениш. Правилните стават зелени. <b>${good}/${n*n}</b></p></div><div class="pz" style="grid-template-columns:repeat(${n},1fr)">`+p.map((v,i)=>`<div class="${i===sel?'sel':''}${v===i?' ok':''}" data-i="${i}" style="background:${bg};background-size:${n*100}% ${n*100}%;background-position:${v%n*100/(n-1)}% ${Math.floor(v/n)*100/(n-1)}%;filter:hue-rotate(${hue}deg)"><span>${v+1}</span></div>`).join('')+'</div>';
+  b.querySelectorAll('.pz div').forEach(d=>d.onclick=()=>{const i=+d.dataset.i;if(sel<0){sel=i;r()}else{[p[sel],p[i]]=[p[i],p[sel]];sel=-1;r();if(p.every((v,j)=>v===j))setTimeout(w,300)}})})();
+}
+function seq(b,w,list){let k=0;(function nx(){b.innerHTML='';const d=document.createElement('div');b.appendChild(d);list[k](d,()=>{if(++k===list.length)w();else nx()})})()}
+function pac(b,w,p){
+ const M0=['#########','#.......#','#.##.##.#','#.......#','#.#.#.#.#','#.......#','#.##.##.#','#.......#','#########'],W=9;
+ const ok=(r,c)=>M0[r][c]==='.',dots=new Set();
+ for(let r=0;r<9;r++)for(let c=0;c<9;c++)if(ok(r,c)&&r%2)dots.add(r*W+c);
+ dots.delete(7*W+4);
+ let d=[0,0],nd=[0,0],pp=[7,4],al=p>=2?[[1,1],[1,7]]:[[1,1]],tk=0,fr=0;
+ const V={u:[-1,0],l:[0,-1],d:[1,0],r:[0,1]};
+ b.innerHTML=`<p class="muted">Събери всички 🪐 и избягвай 👽 (−2 сек.). Плъзни пръст по полето или ползвай бутоните. Остават: <b id="ct"></b></p><div class="pg" id="pg"></div><div class="dp"><span></span><button data-k="u">▲</button><span></span><button data-k="l">◀</button><button data-k="d">▼</button><button data-k="r">▶</button></div>`;
+ const g=b.querySelector('#pg'),ct=b.querySelector('#ct');
+ b.querySelectorAll('.dp button').forEach(x=>x.onclick=()=>{nd=V[x.dataset.k]});
+ let sx=0,sy=0;g.style.touchAction='none';g.addEventListener('pointerdown',e=>{sx=e.clientX;sy=e.clientY});g.addEventListener('pointerup',e=>{const dx=e.clientX-sx,dy=e.clientY-sy;if(Math.max(Math.abs(dx),Math.abs(dy))<20)return;nd=Math.abs(dx)>Math.abs(dy)?(dx>0?V.r:V.l):(dy>0?V.d:V.u)});
+ const kd=e=>{const m={ArrowUp:'u',ArrowLeft:'l',ArrowDown:'d',ArrowRight:'r'}[e.key];if(m){nd=V[m];e.preventDefault()}};
+ document.addEventListener('keydown',kd);
+ const nb=(r,c)=>Object.values(V).map(v=>[r+v[0],c+v[1]]).filter(x=>ok(x[0],x[1]));
+ const dist=x=>Math.abs(x[0]-pp[0])+Math.abs(x[1]-pp[1]);
+ function draw(){g.innerHTML=M0.map((row,r)=>[...row].map((ch,c)=>{let t='',cl='pw';if(ch!=='#'){cl='pc';if(pp[0]===r&&pp[1]===c)t='🚀';else if(al.some(a=>a[0]===r&&a[1]===c))t='👽';else if(dots.has(r*W+c))t='🪐'}return`<i class="${cl}">${t}</i>`}).join('')).join('');ct.textContent=dots.size}
+ draw();
+ const iv=setInterval(()=>{
+  if(G.done||!g.isConnected){clearInterval(iv);document.removeEventListener('keydown',kd);return}
+  tk++;const o=pp.slice(),oa=al.map(a=>a.slice());
+  let n=[pp[0]+nd[0],pp[1]+nd[1]];if((nd[0]||nd[1])&&ok(n[0],n[1]))d=nd;
+  n=[pp[0]+d[0],pp[1]+d[1]];if((d[0]||d[1])&&ok(n[0],n[1]))pp=n;else d=[0,0];
+  dots.delete(pp[0]*W+pp[1]);
+  if(fr>0)fr--;else if((p>=2&&tk%3)||(p===1&&tk%2===0)||(p===0&&tk%3===0))al=al.map(a=>{const q=nb(a[0],a[1]);return Math.random()<.25?q.sort((x,y)=>dist(x)-dist(y))[0]:q[R(q.length)]});
+  if(al.some((a,i)=>(a[0]===pp[0]&&a[1]===pp[1])||(a[0]===o[0]&&a[1]===o[1]&&oa[i][0]===pp[0]&&oa[i][1]===pp[1]))){pen(2);fr=4;pp=[7,4];d=nd=[0,0];al=p>=2?[[1,1],[1,7]]:[[1,1]]}
+  draw();
+  if(!dots.size){clearInterval(iv);document.removeEventListener('keydown',kd);w()}
+ },340);
+}
+function blaster(b,w,p){
+ let left=6+3*p,Ls=[];const T=[],PL=['🪐','🌕','🔴','🔵'];
+ b.innerHTML=`<p class="muted">Докосни къде да стреля бластерът 🔫 по планетите! Не удряй 🛸 (−3 сек.). Остават: <b id="ct">${left}</b></p><div id="ar" style="position:relative;height:320px;border:2px solid var(--line);border-radius:16px;overflow:hidden;background:#120a3a;touch-action:manipulation"><div id="sp" style="position:absolute;bottom:0;left:50%;font-size:34px;transform:translateX(-50%);transition:left .12s">🚀</div></div>`;
+ const ar=b.querySelector('#ar'),ct=b.querySelector('#ct'),sp=b.querySelector('#sp');
+ function spawn(dec){const e=document.createElement('div'),t={el:e,dec,x:R(80),y:[6,26,46][R(3)],v:(.35+.12*p+Math.random()*.3)*(Math.random()<.5?-1:1)};e.textContent=dec?'🛸':PL[R(4)];e.style.cssText=`position:absolute;font-size:36px;top:${t.y}%;left:${t.x}%`;ar.appendChild(e);T.push(t)}
+ for(let i=0;i<3;i++)spawn(false);spawn(true);
+ ar.onclick=e=>{if(G.done)return;const r=ar.getBoundingClientRect(),x=Math.min(94,Math.max(2,(e.clientX-r.left)/r.width*100));sp.style.left=x+'%';const el=document.createElement('div');el.style.cssText=`position:absolute;width:4px;height:18px;border-radius:2px;background:#7df9ff;box-shadow:0 0 8px #7df9ff;left:${x}%;bottom:12%`;ar.appendChild(el);Ls.push({el,x,y:12})};
+ const iv=setInterval(()=>{
+  if(G.done||!ar.isConnected)return clearInterval(iv);
+  T.forEach(t=>{t.x+=t.v;if(t.x<1||t.x>88)t.v=-t.v;t.el.style.left=t.x+'%'});
+  Ls=Ls.filter(l=>{l.y+=3;l.el.style.bottom=l.y+'%';
+   const t=T.find(t=>Math.abs(t.x+4-l.x)<8&&Math.abs(100-t.y-6-l.y)<7);
+   if(t){l.el.remove();t.el.remove();T.splice(T.indexOf(t),1);
+    if(t.dec){pen(3);spawn(true)}else{ct.textContent=--left;if(left<=0){clearInterval(iv);w();return false}spawn(false)}
+    return false}
+   if(l.y>100){l.el.remove();return false}return true})},30);
+}
+function hide(b,w,p){
+ const E=['🪐','🌙','🛰️','☄️','🌕','🔴','🌑','🛸','⭐','🌍','🔵','🌞'],k=3+p,al=new Set(),seen=new Set();let got=0;
+ while(al.size<k)al.add(R(12));
+ b.innerHTML=`<p class="muted">Космическа криеница: намери ${k} скрити 👽! Остават: <b id="ct">${k}</b></p><p class="muted" id="hn">Докосни обект, за да провериш зад него.</p><div class="mem" style="grid-template-columns:repeat(4,1fr)">${E.map((e,i)=>`<div data-i="${i}" style="font-size:32px">${e}</div>`).join('')}</div>`;
+ const el=[...b.querySelectorAll('.mem div')],hn=b.querySelector('#hn'),ct=b.querySelector('#ct');
+ el.forEach((d,i)=>d.onclick=()=>{
+  if(seen.has(i))return;seen.add(i);
+  if(al.has(i)){d.textContent='👽';d.className='done';ct.textContent=k-++got;hn.textContent='Откри го! 🎉';if(got===k)setTimeout(w,300);return}
+  d.textContent='💨';d.className='open';pen(1);
+  let m=99;al.forEach(a=>{if(!seen.has(a)){m=Math.min(m,Math.abs((a>>2)-(i>>2))+Math.abs(a%4-i%4))}});
+  hn.textContent=m<=1?'🔥 Горещо! Съвсем близо е!':m<=2?'☀️ Топло…':'❄️ Студено…';
+ });
+}
+function mario(b,w,p){
+ const L=260+50*p,O=[];let cam=0,y=0,vy=0;
+ b.innerHTML=`<p class="muted">🧑‍🚀 Докосни, за да скочиш! ☄️ и 👽 −2 сек., ⭐ +1 сек. Стигни до 🚩</p><div id="ar" style="position:relative;height:260px;border:2px solid var(--line);border-radius:16px;overflow:hidden;background:linear-gradient(#150a45,#3a1f7a);touch-action:manipulation"><div style="position:absolute;left:0;right:0;bottom:0;height:12%;background:#5a3fd0"></div><div id="pl" style="position:absolute;left:15%;bottom:12%;font-size:36px;line-height:1;transform:translateX(-50%)">🧑‍🚀</div></div>`;
+ const ar=b.querySelector('#ar'),pl=b.querySelector('#pl');
+ function add(e,ox,h,k){const d=document.createElement('div');d.textContent=e;d.style.cssText='position:absolute;font-size:34px;line-height:1;transform:translateX(-50%);bottom:'+(12+h)+'%';ar.appendChild(d);O.push({d,ox,k})}
+ for(let x=40;x<L-30;x+=28+R(16)){add(R(2)?'☄️':'👽',x,0,'o');add('⭐',x+14,14,'c')}
+ add('🚩',L,0,'f');
+ ar.onpointerdown=()=>{if(y===0)vy=2.6};
+ const iv=setInterval(()=>{
+  if(G.done||!ar.isConnected)return clearInterval(iv);
+  cam+=.7+.05*p;y+=vy;vy-=.18;if(y<=0){y=0;vy=0}
+  pl.style.bottom=(12+y)+'%';
+  for(const o of O){if(o.x)continue;const sx=o.ox-cam;o.d.style.left=sx+'%';
+   if(o.k==='f'){if(sx<=15){clearInterval(iv);w();return}}
+   else if(Math.abs(sx-15)<5){
+    if(o.k==='o'&&y<11){pen(2);o.x=1;o.d.remove()}
+    else if(o.k==='c'&&y>8){pen(-1);o.x=1;o.d.remove()}}}
+ },30);
+}
+function skate(b,w,p){
+ let lane=1,prog=0,tk=0;const ob=[],X=[17,50,83];
+ b.innerHTML=`<p class="muted">🛹 Карай от точка ① до точка ②! Докосни лявата или дясната половина, за да смениш лентата. Кратерите ☄️ −2 сек.</p><div class="bar"><i id="pg2" style="width:0"></i></div><div id="ar" style="position:relative;height:300px;border:2px solid var(--line);border-radius:16px;overflow:hidden;background:repeating-linear-gradient(90deg,#150a45 0 33.3%,#1d1060 33.3% 66.6%,#150a45 66.6% 100%);touch-action:manipulation"><div id="sk" style="position:absolute;bottom:4%;font-size:38px;line-height:1;transform:translateX(-50%);transition:left .1s;left:50%">🛹</div></div>`;
+ const ar=b.querySelector('#ar'),sk=b.querySelector('#sk'),pg=b.querySelector('#pg2');
+ ar.onpointerdown=e=>{const r=ar.getBoundingClientRect();lane=e.clientX<r.left+r.width/2?Math.max(0,lane-1):Math.min(2,lane+1);sk.style.left=X[lane]+'%'};
+ const iv=setInterval(()=>{
+  if(G.done||!ar.isConnected)return clearInterval(iv);
+  tk++;prog+=.19+.03*p;pg.style.width=Math.min(100,prog)+'%';
+  if(tk%(24-3*p)===0){const d=document.createElement('div'),l=R(3);d.textContent='☄️';d.style.cssText=`position:absolute;font-size:34px;line-height:1;transform:translateX(-50%);left:${X[l]}%;top:-10%`;ar.appendChild(d);ob.push({d,l,t:-10})}
+  for(let i=ob.length-1;i>=0;i--){const o=ob[i];o.t+=2.2+.4*p;o.d.style.top=o.t+'%';
+   if(o.l===lane&&o.t>70&&o.t<90){pen(2);o.d.remove();ob.splice(i,1)}
+   else if(o.t>105){o.d.remove();ob.splice(i,1)}}
+  if(prog>=100){clearInterval(iv);w()}
+ },30);
+}
+function football(b,w,p){
+ const N=3+p;let got=0,kp=[],lock=false;
+ b.innerHTML=`<p class="muted">⚽ Дузпа! Докосни зона от вратата. Вратарят 👽 пази! Голове: <b id="ct">${N}</b></p><div class="mem" id="gl" style="grid-template-columns:repeat(3,1fr);padding:6px;border:3px solid #fff;border-radius:14px">${[0,1,2,3,4,5].map(i=>`<div data-i="${i}" style="font-size:34px;aspect-ratio:2/1"></div>`).join('')}</div><p class="muted" id="fm">&nbsp;</p>`;
+ const c=[...b.querySelectorAll('#gl div')],fm=b.querySelector('#fm'),ct=b.querySelector('#ct');
+ function mv(){kp=[R(6)];if(p>0){let q;do{q=R(6)}while(q===kp[0]);kp.push(q)}c.forEach((d,i)=>d.textContent=kp.includes(i)?'👽':'')}
+ mv();
+ const iv=setInterval(()=>{if(G.done||!ct.isConnected)return clearInterval(iv);if(!lock)mv()},900-120*p);
+ c.forEach((d,i)=>d.onclick=()=>{
+  if(lock)return;lock=true;
+  if(kp.includes(i)||Math.random()<.1+.07*p){d.textContent='🧤';pen(2);fm.textContent='Спасено! 🧤'}
+  else{d.textContent='⚽';ct.textContent=N-++got;fm.textContent='ГОЛ! 🎉';if(got===N){clearInterval(iv);setTimeout(w,400);return}}
+  setTimeout(()=>{lock=false;mv()},500)});
+}
+function basket(b,w,p){
+ let hx=10,dir=1,made=0,busy=false;const N=3+p;
+ b.innerHTML=`<p class="muted">🏀 Хвърли, когато коша 🧺 е точно над топката! Остават кошове: <b id="ct">${N}</b>. Пропуск −1 сек.</p><div id="ar" style="position:relative;height:300px;border:2px solid var(--line);border-radius:16px;overflow:hidden;background:linear-gradient(#1a1050,#4a1a8a)"><div id="hp" style="position:absolute;top:8%;left:10%;font-size:44px;line-height:1;transform:translateX(-50%)">🧺</div><div id="bl" style="position:absolute;bottom:3%;left:50%;font-size:34px;line-height:1;transform:translateX(-50%)">🏀</div></div><button class="btn gold" id="th">🏀 Хвърли</button>`;
+ const hp=b.querySelector('#hp'),bl=b.querySelector('#bl'),ct=b.querySelector('#ct');
+ const iv=setInterval(()=>{if(G.done||!hp.isConnected)return clearInterval(iv);hx+=dir*(.8+.25*p);if(hx>=90||hx<=10)dir=-dir;hp.style.left=hx+'%'},30);
+ b.querySelector('#th').onclick=()=>{
+  if(busy||G.done)return;busy=true;bl.style.transition='bottom .38s ease-out';bl.style.bottom='68%';
+  setTimeout(()=>{
+   if(G.done)return;
+   if(Math.abs(hx-50)<10){ct.textContent=N-++made;if(made===N){clearInterval(iv);w();return}}else pen(1);
+   bl.style.transition='none';bl.style.bottom='3%';busy=false},400)};
+}
+function tennis(b,w,p){
+ let bx=50,by=20,vx=.9,vy=1.6+.2*p,px=50,got=0;const N=4+2*p;
+ b.innerHTML=`<p class="muted">🎾 Върни топката с ракетата 🏓 (движи пръста по полето)! Върнати: <b id="ct">0</b>/${N}. Пропуск −2 сек.</p><div id="ar" style="position:relative;height:320px;border:2px solid var(--line);border-radius:16px;overflow:hidden;background:linear-gradient(#0f5a3a,#146b45);touch-action:none"><div id="op" style="position:absolute;top:1%;font-size:32px;line-height:1;transform:translateX(-50%)">👽</div><div style="position:absolute;top:50%;left:0;right:0;border-top:2px dashed #fff5"></div><div id="bl" style="position:absolute;font-size:24px;line-height:1;transform:translate(-50%,-50%)">🎾</div><div id="rk" style="position:absolute;top:88%;font-size:36px;line-height:1;transform:translateX(-50%)">🏓</div></div>`;
+ const ar=b.querySelector('#ar'),bl=b.querySelector('#bl'),rk=b.querySelector('#rk'),op=b.querySelector('#op'),ct=b.querySelector('#ct');
+ ar.onpointermove=ar.onpointerdown=e=>{const r=ar.getBoundingClientRect();px=Math.min(95,Math.max(5,(e.clientX-r.left)/r.width*100));rk.style.left=px+'%'};
+ rk.style.left='50%';
+ const iv=setInterval(()=>{
+  if(G.done||!ar.isConnected)return clearInterval(iv);
+  bx+=vx;by+=vy;
+  if(bx<4||bx>96)vx=-vx;
+  if(by<=8&&vy<0){vy=-vy;vx=Math.max(-1.3,Math.min(1.3,vx+(Math.random()-.5)*.6))}
+  if(by>=84&&by<=94&&vy>0&&Math.abs(bx-px)<15){vy=-Math.min(2.6,vy*1.03);vx=Math.max(-1.3,Math.min(1.3,vx+(bx-px)*.05));ct.textContent=++got;if(got>=N){clearInterval(iv);w();return}}
+  if(by>100){pen(2);bx=50;by=20;vy=Math.abs(vy)}
+  bl.style.left=bx+'%';bl.style.top=by+'%';op.style.left=bx+'%';
+ },30);
+}
+function buildLV(){
+ const out=[],cnt={};let qi=0;const qn=()=>Q[qi++%Q.length];
+ const SCH=[['q','a','g','o','m','s','b','t','p'],['k','a','o','g','m','q','b','s','p'],['t','k','o','a','q','m','g','b','k'],['mr','sk','fb','tn','mr','sk','bk','fb','tn']];
+ const FA=['Повечето астероиди се намират в пояса между Марс и Юпитер.','Най-големият обект в астероидния пояс, Церера, е планета джудже.','Астероид, паднал преди около 66 милиона години, е допринесъл за изчезването на динозаврите.','Някои астероиди имат собствени малки спътници.'];
+ const FG=['Планетите се движат по орбити, защото Слънцето ги притегля със своята гравитация.','Юпитер има повече от 90 известни спътника.','Земята обикаля Слънцето със скорост около 30 км/сек.'];
+ const FB=['Светлината е най-бързото нещо във Вселената – около 300 000 км/сек.','Сатурн е толкова лек, че би плувал във вода, ако имаше достатъчно голям океан.','Една година на Нептун трае около 165 земни години.'];
+ const FK=['Много астероиди са малки и тъмни, затова е трудно да бъдат открити.','Астрономите откриват скрити планети по лекото помръкване на звездите им.','Тъмната материя е невидима, но се познава по гравитацията си.'];
+ const FM=['На Луната гравитацията е около 6 пъти по-слаба, затова астронавтите подскачат високо.','Гравитацията на Марс е около 38% от земната.'];
+ const FSK=['Първият лунен ровер е използван по време на мисията Аполо 15 през 1971 г.','Колелата на марсоходите са метални, за да се справят с камъни и пясък.'];
+ const FFB=['Астронавтът Алън Шепърд е удрял топки за голф на Луната през 1971 г.','Футболна топка на Луната би литнала много по-далече заради слабата гравитация.'];
+ const FTN=['В безтегловност една топка не пада, а просто остава във въздуха.','Астронавтите на МКС тренират около 2 часа всеки ден.'];
+ const FS=['Сигналите от Земята до Марс пътуват от около 3 до 22 минути.','Вояджър 1 е най-отдалеченият създаден от човек обект и още изпраща сигнали.','Космическите сонди си разменят данни с радиовълни със скоростта на светлината.'];
+ const FT=['При скачване на кораб със станция точността е въпрос на милиметри и секунди.','Космическата станция обикаля Земята приблизително на всеки 90 минути.','Ракетите излитат в точен времеви прозорец от няколко минути.'];
+ const BOSS=[
+  {t:'👾 Бос: Астероидният гигант',time:60,f:'В астероидния пояс има милиони скални тела.',st:[(d,x)=>asteroids(d,x,3),(d,x)=>blaster(d,x,1),(d,x)=>qz(d,[qn(),qn()],x)]},
+  {t:'👾 Бос: Кралят на мъглявините',time:60,f:'Мъглявините са облаци от газ и прах, в които се раждат нови звезди.',st:[(d,x)=>simon(d,x,2),(d,x)=>timing(d,x,2),(d,x)=>hide(d,x,1)]},
+  {t:'👾 Бос: Повелителят на черните дупки',time:100,f:'Първата снимка на черна дупка е публикувана през 2019 г.',st:[(d,x)=>pac(d,x,2),(d,x)=>blaster(d,x,2),(d,x)=>qz(d,[qn(),qn()],x)]},
+  {t:'👾 Бос: Чемпионът на арената',time:100,f:'На Луната гравитацията е около 6 пъти по-слаба от земната.',st:[(d,x)=>mario(d,x,2),(d,x)=>football(d,x,2),(d,x)=>tennis(d,x,2)]}];
+ SCH.forEach((g,gi)=>{
+  g.forEach(ty=>{const p=cnt[ty]=(cnt[ty]===undefined?0:cnt[ty]+1);let o;
+   if(ty==='q'){const q=qn();o={t:'Космически въпрос',f:q[3],m:(b,w)=>qz(b,[q],w)}}
+   else if(ty==='h')o={t:'Логическа мисия',f:'Навигаторите сравняват общото време, а не само скоростта.',m:(b,w)=>qz(b,[shipQ()],w)};
+   else if(ty==='a')o={t:'Улови астероидите',f:FA[p],m:(b,w)=>asteroids(b,w,p)};
+   else if(ty==='o')o={t:'Подреди планетите',f:O[p][2],m:(b,w)=>order(b,w,O[p][0],O[p][1])};
+   else if(ty==='m')o={t:'Звездна памет',f:M[p][1],time:p===2?40:30,m:(b,w)=>memory(b,w,M[p][0])};
+   else if(ty==='s')o={t:'Звезден код',f:FS[p],m:(b,w)=>simon(b,w,p)};
+   else if(ty==='t')o={t:'Прецизен изстрел',f:FT[p],m:(b,w)=>timing(b,w,p)};
+   else if(ty==='g')o={t:'Планетен ловец',f:FG[p],time:p===2?75:60,m:(b,w)=>pac(b,w,p)};
+   else if(ty==='b')o={t:'Космически бластер',f:FB[p],m:(b,w)=>blaster(b,w,p)};
+   else if(ty==='k')o={t:'Космическа криеница',f:FK[p],m:(b,w)=>hide(b,w,p)};
+   else if(ty==='mr')o={t:'Лунна мисия',f:FM[p],time:40,m:(b,w)=>mario(b,w,p)};
+   else if(ty==='sk')o={t:'Лунен скейтборд',f:FSK[p],time:40,m:(b,w)=>skate(b,w,p)};
+   else if(ty==='fb')o={t:'Космически футбол',f:FFB[p],m:(b,w)=>football(b,w,p)};
+   else if(ty==='bk')o={t:'Космически баскетбол',f:'На Луната скокът би бил около 6 пъти по-висок – забиването би било лесно.',m:(b,w)=>basket(b,w,p)};
+   else if(ty==='tn')o={t:'Космически тенис',f:FTN[p],time:40,m:(b,w)=>tennis(b,w,p)};
+   else o={t:'Космически пъзел',f:PF[p],time:p===2?60:40,m:(b,w)=>puzzleN(b,w,p<2?3:4,p*100)};
+   out.push(o)});
+  const B=BOSS[gi];out.push({t:B.t,boss:true,time:B.time,f:B.f,m:(b,w)=>seq(b,w,B.st)})});
+ return out}
+LV=buildLV();
+function levels(g){
+ if(g===undefined)g=(cur==='play'||cur==='res')?Math.floor(G.i/10):-1;
+ const GN=[['Слънчева система','☀️'],['Мъглявини','🌌'],['Далечни светове','🪐'],['Космическа арена','🏟️']];
+ if(g<0){
+  const c=GN.map((x,i)=>{const ok=i===0||S.stars[i*10];let st=0;for(let n=i*10+1;n<=i*10+10;n++)st+=S.stars[n]||0;
+   return ok?`<button class="btn" onclick="levels(${i})">${x[1]} ${x[0]}<br><small>Нива ${i*10+1}–${i*10+10} · ⭐ ${st}/30</small></button>`:`<div class="btn" style="opacity:.45">🔒 ${x[0]}<br><small>Победи боса на ниво ${i*10}</small></div>`}).join('');
+  return show(`<div class="top"><button class="chip" onclick="home()">←</button><span class="chip">⭐ ${S.score}</span></div><h2>Избери галактика</h2>${c}<p class="muted">Всяко ново ниво се отключва, когато минеш предишното.</p>`,'gal')}
+ let h='';
+ for(let n=g*10+1;n<=g*10+10;n++){const ok=n===1||S.stars[n-1];
+  h+=ok?`<button class="lv" onclick="play(${n-1})">${n%10===0?'👾':n}<small>${'★'.repeat(S.stars[n]||0)||'&nbsp;'}</small></button>`:`<div class="lv lock">🔒</div>`}
+ show(`<div class="top"><button class="chip" onclick="levels(-1)">←</button><span class="chip">⭐ ${S.score}</span></div><h2>${GN[g][1]} ${GN[g][0]} · Нива ${g*10+1}–${g*10+10}</h2><div class="grid">${h}</div><p class="muted">Всяко ниво има свой таймер. Босът дава двойни точки!</p>`,'levels');
+}
+home();
+</script></body></html>
